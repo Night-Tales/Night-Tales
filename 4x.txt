@@ -1,0 +1,142 @@
+var config = {
+  baseBet: { value: 100, type: 'balance', label: 'base bet', losingStreak: 0 },
+  activation: { value: 1000, type: 'balance', label: 'Activation Number' } 
+ 
+};
+log('Script coded By Beat the House you tube channel');
+log('We are not responsible for any losses. Nothing is guaranteed.');
+log('Script is running... 4x Script - Activation');
+ 
+var cashOut = 4;
+log('Cashout: ', cashOut);
+ 
+var startingBalance = userInfo.balance;
+log('Starting Balance: ', startingBalance);
+ 
+var currentBet = config.baseBet.value;
+log('Base Bet: ', currentBet/100);
+ 
+log('Creating Bet Matrix');
+var startingBet = currentBet;
+var betMatrix = [];
+var multiplier = 1;
+var i=0;
+ 
+for (i = 0; i < 70; i++) 
+{
+  if(i > 0 && i % 2 == 0)
+    multiplier = 2;
+  else
+    multiplier = 1;
+ 
+  betMatrix[i] = startingBet * multiplier;
+  //log('Bet Matrix ', i, ' = ', betMatrix[i])
+  startingBet = betMatrix[i];
+ 
+}
+ 
+var bettingActive = false;
+var activationNumber = config.activation.value/100;
+ 
+var activate = 0;
+ 
+log('Activation Number Set at ', activationNumber);
+ 
+var shibaMaxLoss = 49;
+var betTimes = shibaMaxLoss - activationNumber;
+//Info: Balance:
+var balanceNeeded = 0;
+for (i = 0; i < betTimes; i++) 
+{
+  balanceNeeded += betMatrix[i];
+}
+log('Balance Needed to not lose based on history of shiba all time is: ', balanceNeeded/100);
+ 
+engine.on('GAME_STARTING', onGameStarted);
+engine.on('GAME_ENDED', onGameEnded);
+ 
+ 
+function onGameStarted() 
+{
+  if(bettingActive)
+  {
+    engine.bet(roundBit(currentBet), cashOut); 
+  }
+  else
+  {
+    //do nothing
+  }
+}
+ 
+function onGameEnded() {
+  var lastGame = engine.history.first()
+ 
+  // If we wagered, it means we played
+  if (!lastGame.wager) {
+ 
+    if(lastGame.bust < cashOut)
+    {
+      activate++;      
+ 
+      if(activate == activationNumber)
+      {
+          bettingActive = true;
+          log('SKIP : Bust: ', lastGame.bust, ' Activation Number: ',  activate, ' of ', activationNumber, ' Balance: ', userInfo.balance/100, ', Profit: ', (userInfo.balance/100) - (startingBalance/100));
+          log('START BETTING NOW: Placing Bet of ', currentBet/100,);
+      }
+      else
+      {
+        log('SKIP : Bust: ', lastGame.bust, ' Activation Number: ',  activate, ' of ', activationNumber, ' Balance: ', userInfo.balance/100, ', Profit: ', (userInfo.balance/100) - (startingBalance/100));
+      }
+    }
+    else
+    {
+      activate = 0;
+      bettingActive = false;
+      log('RESET ACTIVATION : Bust: ', lastGame.bust, ' Activation Number: ',  activate, ' of ', activationNumber, ' Balance: ', userInfo.balance/100, ', Profit: ', (userInfo.balance/100) - (startingBalance/100));
+    }
+ 
+ 
+    return;
+  }
+ 
+  //betting has to be active to reach here.
+  if (lastGame.cashedAt) 
+  {
+      currentBet = config.baseBet.value;
+ 
+      log('WON : ', (lastGame.wager/100) * (cashOut), ' Bust: ', lastGame.bust, ', Balance: ', userInfo.balance/100, ', Profit: ', (userInfo.balance/100) - (startingBalance/100), ' Losing Streak was ', config.baseBet.losingStreak);
+ 
+      config.baseBet.losingStreak=0;
+      bettingActive = false;
+      activate = 0;
+ 
+  } 
+  else 
+  {
+      var lStreak = config.baseBet.losingStreak;
+ 
+      config.baseBet.losingStreak++;
+ 
+      currentBet = betMatrix[config.baseBet.losingStreak];
+ 
+      log('LOST       : ', lastGame.wager/100, ' Bust: ', lastGame.bust, ' Next Bet: ', currentBet/100, ', Balance: ', userInfo.balance/100, ', Profit: ', (userInfo.balance/100) - (startingBalance/100), ' Losing Streak is ', lStreak + 1);
+ 
+  }  
+ 
+ 
+ 
+  if (userInfo.balance/100 < 10) {
+    log('Game ended. Balance Below 10.')
+    engine.removeListener('GAME_STARTING', onGameStarted);
+    engine.removeListener('GAME_ENDED', onGameEnded);
+  }
+ 
+ 
+}
+ 
+ 
+function roundBit(bet) {
+  return Math.round(bet / 100) * 100;
+}
+ 
